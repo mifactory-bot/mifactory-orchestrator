@@ -1,0 +1,190 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>mifactory — MAS-Factory Visualizer</title>
+<style>
+  :root {
+    --bg: #0a0a0f; --surface: #12121a; --border: #1e1e2e;
+    --accent: #7c3aed; --accent2: #06b6d4; --success: #10b981;
+    --error: #ef4444; --warning: #f59e0b; --text: #e2e8f0;
+    --muted: #64748b; --card: #16162a;
+  }
+  * { box-sizing: border-box; margin: 0; padding: 0; }
+  body { background: var(--bg); color: var(--text); font-family: 'SF Mono', monospace; min-height: 100vh; padding: 24px; }
+  header { display: flex; align-items: center; gap: 12px; margin-bottom: 32px; }
+  .logo { width: 36px; height: 36px; background: linear-gradient(135deg, var(--accent), var(--accent2)); border-radius: 8px; display: flex; align-items: center; justify-content: center; font-size: 18px; }
+  h1 { font-size: 20px; font-weight: 700; } h1 span { color: var(--accent2); }
+  .tagline { font-size: 11px; color: var(--muted); margin-top: 2px; }
+  .grid { display: grid; grid-template-columns: 1fr 1fr; gap: 20px; max-width: 1100px; margin: 0 auto; }
+  @media (max-width: 768px) { .grid { grid-template-columns: 1fr; } }
+  .panel { background: var(--surface); border: 1px solid var(--border); border-radius: 12px; padding: 20px; }
+  .panel-title { font-size: 11px; text-transform: uppercase; letter-spacing: 1.5px; color: var(--muted); margin-bottom: 16px; }
+  label { font-size: 12px; color: var(--muted); display: block; margin-bottom: 6px; }
+  input, textarea { width: 100%; background: var(--bg); border: 1px solid var(--border); border-radius: 8px; color: var(--text); font-family: inherit; font-size: 13px; padding: 10px 14px; outline: none; transition: border-color 0.2s; }
+  input:focus, textarea:focus { border-color: var(--accent); }
+  textarea { resize: vertical; min-height: 90px; }
+  .form-group { margin-bottom: 14px; }
+  button { width: 100%; padding: 11px; border: none; border-radius: 8px; font-family: inherit; font-size: 13px; font-weight: 600; cursor: pointer; transition: all 0.2s; }
+  .btn-primary { background: linear-gradient(135deg, var(--accent), #9333ea); color: white; }
+  .btn-primary:hover { opacity: 0.9; transform: translateY(-1px); }
+  .btn-primary:disabled { opacity: 0.4; cursor: not-allowed; transform: none; }
+  .btn-success { background: linear-gradient(135deg, var(--success), #059669); color: white; margin-top: 12px; }
+  .btn-success:hover { opacity: 0.9; transform: translateY(-1px); }
+  .btn-success:disabled { opacity: 0.4; cursor: not-allowed; transform: none; }
+  .graph { display: flex; flex-direction: column; gap: 8px; }
+  .node-card { background: var(--card); border: 1px solid var(--border); border-radius: 10px; padding: 14px; transition: border-color 0.3s; }
+  .node-card.running { border-color: var(--warning); }
+  .node-card.success { border-color: var(--success); }
+  .node-card.error { border-color: var(--error); }
+  .node-header { display: flex; align-items: center; justify-content: space-between; margin-bottom: 8px; }
+  .node-id { font-size: 10px; color: var(--accent2); font-weight: 700; text-transform: uppercase; letter-spacing: 1px; }
+  .node-badge { font-size: 10px; padding: 2px 8px; border-radius: 20px; font-weight: 600; }
+  .badge-pending { background: #1e293b; color: var(--muted); }
+  .badge-running { background: #451a03; color: var(--warning); }
+  .badge-success { background: #052e16; color: var(--success); }
+  .badge-error { background: #2d0000; color: var(--error); }
+  .node-service { font-size: 13px; font-weight: 600; }
+  .node-endpoint { font-size: 11px; color: var(--accent); margin-top: 2px; }
+  .node-desc { font-size: 11px; color: var(--muted); margin-top: 6px; }
+  .node-output { margin-top: 10px; padding: 10px; background: var(--bg); border-radius: 6px; font-size: 10px; color: var(--muted); max-height: 80px; overflow-y: auto; word-break: break-all; }
+  .connector { display: flex; align-items: center; justify-content: center; color: var(--border); font-size: 16px; }
+  .credits-row { display: flex; align-items: center; justify-content: space-between; margin-top: 12px; padding: 10px 14px; background: var(--bg); border-radius: 8px; font-size: 12px; }
+  .credits-label { color: var(--muted); } .credits-value { color: var(--accent2); font-weight: 700; }
+  .status-bar { margin-top: 16px; padding: 10px 14px; border-radius: 8px; font-size: 12px; display: none; }
+  .status-bar.show { display: block; }
+  .status-bar.info { background: #0c1a2e; border: 1px solid #1e3a5f; color: var(--accent2); }
+  .status-bar.ok { background: #052e16; border: 1px solid #065f46; color: var(--success); }
+  .status-bar.fail { background: #2d0000; border: 1px solid #7f1d1d; color: var(--error); }
+  .spinner { display: inline-block; width: 12px; height: 12px; border: 2px solid var(--border); border-top-color: var(--accent); border-radius: 50%; animation: spin 0.7s linear infinite; margin-right: 6px; vertical-align: middle; }
+  @keyframes spin { to { transform: rotate(360deg); } }
+  .summary { display: grid; grid-template-columns: repeat(3, 1fr); gap: 10px; margin-top: 14px; }
+  .stat { background: var(--bg); border-radius: 8px; padding: 12px; text-align: center; }
+  .stat-value { font-size: 22px; font-weight: 700; } .stat-label { font-size: 10px; color: var(--muted); margin-top: 2px; }
+  .stat-total .stat-value { color: var(--text); } .stat-success .stat-value { color: var(--success); } .stat-error .stat-value { color: var(--error); }
+  .empty-state { text-align: center; color: var(--muted); font-size: 12px; padding: 40px 20px; }
+  .empty-state .icon { font-size: 32px; margin-bottom: 10px; }
+</style>
+</head>
+<body>
+<header>
+  <div class="logo">⚡</div>
+  <div>
+    <h1>mifactory <span>MAS-Factory</span></h1>
+    <div class="tagline">Vibe Graphing · Pay-per-use agent orchestration</div>
+  </div>
+</header>
+<div class="grid">
+  <div>
+    <div class="panel">
+      <div class="panel-title">🎯 New Task</div>
+      <div class="form-group"><label>API Key</label><input type="password" id="apiKey" placeholder="tu-api-key de mifactory-portal"></div>
+      <div class="form-group"><label>Describe your task in plain English</label><textarea id="task" placeholder="E.g.: Scrape https://example.com, convert content to spec, and verify the logic"></textarea></div>
+      <button class="btn-primary" id="btnGenerate" onclick="generateBlueprint()">⚡ Generate Blueprint</button>
+      <div id="statusInput" class="status-bar"></div>
+    </div>
+    <div class="panel" id="summaryPanel" style="display:none; margin-top:20px;">
+      <div class="panel-title">📊 Resultado</div>
+      <div class="summary">
+        <div class="stat stat-total"><div class="stat-value" id="statTotal">0</div><div class="stat-label">Nodos</div></div>
+        <div class="stat stat-success"><div class="stat-value" id="statSuccess">0</div><div class="stat-label">Exitosos</div></div>
+        <div class="stat stat-error"><div class="stat-value" id="statError">0</div><div class="stat-label">Errores</div></div>
+      </div>
+    </div>
+  </div>
+  <div>
+    <div class="panel">
+      <div class="panel-title">🗺️ Blueprint — Execution Graph</div>
+      <div id="graphContainer">
+        <div class="empty-state"><div class="icon">🤖</div><div>Describe a task and generate a blueprint to see the execution graph here</div></div>
+      </div>
+      <div id="approveSection" style="display:none;">
+        <div class="credits-row"><span class="credits-label">⚡ Estimated credits</span><span class="credits-value" id="estimatedCredits">—</span></div>
+        <button class="btn-success" id="btnExecute" onclick="executeBlueprint()">✅ Approve & Execute</button>
+      </div>
+      <div id="statusGraph" class="status-bar"></div>
+    </div>
+  </div>
+</div>
+<script>
+let currentBlueprint = null;
+function showStatus(id, msg, type) { const el = document.getElementById(id); el.className = 'status-bar show ' + type; el.innerHTML = msg; }
+function renderGraph(blueprint, statuses) {
+  const container = document.getElementById('graphContainer');
+  if (!blueprint || !blueprint.nodes.length) { container.innerHTML = '<div class="empty-state"><div class="icon">🤖</div><div>Sin nodos</div></div>'; return; }
+  let html = '<div class="graph">';
+  blueprint.nodes.forEach((node, i) => {
+    const st = (statuses && statuses[node.id]) || 'pending';
+    const badges = { pending: 'Pending', running: 'Running...', success: '✓ OK', error: '✗ Error' };
+    html += '<div class="node-card ' + st + '" id="node-' + node.id + '">';
+    html += '<div class="node-header"><span class="node-id">' + node.id + '</span><span class="node-badge badge-' + st + '">' + (st === 'running' ? '<span class="spinner"></span>' : '') + badges[st] + '</span></div>';
+    html += '<div class="node-service">' + node.service + '</div>';
+    html += '<div class="node-endpoint">' + node.endpoint + '</div>';
+    html += '<div class="node-desc">' + (node.description || '') + '</div></div>';
+    if (i < blueprint.nodes.length - 1) html += '<div class="connector">↓</div>';
+  });
+  html += '</div>';
+  container.innerHTML = html;
+}
+function updateNodeStatus(nodeId, status, data) {
+  const el = document.getElementById('node-' + nodeId);
+  if (!el) return;
+  el.className = 'node-card ' + status;
+  const badge = el.querySelector('.node-badge');
+  const badges = { pending: 'Pending', running: 'Running...', success: '✓ OK', error: '✗ Error' };
+  badge.className = 'node-badge badge-' + status;
+  badge.innerHTML = (status === 'running' ? '<span class="spinner"></span>' : '') + badges[status];
+  if (data) {
+    let out = el.querySelector('.node-output');
+    if (!out) { out = document.createElement('div'); out.className = 'node-output'; el.appendChild(out); }
+    out.style.color = status === 'error' ? 'var(--error)' : 'var(--muted)';
+    out.textContent = typeof data === 'string' ? data : JSON.stringify(data).slice(0, 300);
+  }
+}
+async function generateBlueprint() {
+  const task = document.getElementById('task').value.trim();
+  if (!task) return showStatus('statusInput', '⚠️ Escribe una tarea primero', 'info');
+  const btn = document.getElementById('btnGenerate');
+  btn.disabled = true; btn.innerHTML = '<span class="spinner"></span> Generando...';
+  showStatus('statusInput', '<span class="spinner"></span> Claude is designing the blueprint...', 'info');
+  document.getElementById('approveSection').style.display = 'none';
+  document.getElementById('summaryPanel').style.display = 'none';
+  try {
+    const res = await fetch('/orchestrate', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ task }) });
+    const data = await res.json();
+    if (!res.ok) throw new Error(data.error || 'Error');
+    currentBlueprint = data.blueprint;
+    renderGraph(currentBlueprint, {});
+    document.getElementById('estimatedCredits').textContent = (currentBlueprint.estimated_credits || '?') + ' cr';
+    document.getElementById('approveSection').style.display = 'block';
+    showStatus('statusInput', '✅ Blueprint generated — ' + currentBlueprint.nodes.length + ' nodes. Review and approve.', 'ok');
+  } catch (err) { showStatus('statusInput', '❌ ' + err.message, 'fail'); }
+  finally { btn.disabled = false; btn.innerHTML = '⚡ Generate Blueprint'; }
+}
+async function executeBlueprint() {
+  const apiKey = document.getElementById('apiKey').value.trim();
+  if (!apiKey) return showStatus('statusGraph', '⚠️ Ingresa tu API Key', 'info');
+  if (!currentBlueprint) return;
+  const btn = document.getElementById('btnExecute');
+  btn.disabled = true; btn.innerHTML = '<span class="spinner"></span> Executing...';
+  showStatus('statusGraph', '<span class="spinner"></span> Executing nodes...', 'info');
+  currentBlueprint.nodes.forEach(n => updateNodeStatus(n.id, 'running', null));
+  try {
+    const cleanKey = apiKey.trim().replace(/[^\x00-\x7F]/g, '');
+    const res = await fetch('/execute', { method: 'POST', headers: { 'Content-Type': 'application/json', 'x-api-key': cleanKey }, body: JSON.stringify({ blueprint: currentBlueprint }) });
+    const data = await res.json();
+    if (!res.ok) throw new Error(data.error || 'Execution failed');
+    data.results.forEach(r => updateNodeStatus(r.id, r.status, r.status === 'success' ? r.output : r.error));
+    document.getElementById('summaryPanel').style.display = 'block';
+    document.getElementById('statTotal').textContent = data.summary.total;
+    document.getElementById('statSuccess').textContent = data.summary.success;
+    document.getElementById('statError').textContent = data.summary.failed;
+    if (data.summary.failed === 0) showStatus('statusGraph', '✅ Completed — ' + data.summary.success + '/' + data.summary.total + ' successful', 'ok');
+    else showStatus('statusGraph', '⚠️ ' + data.summary.success + ' OK / ' + data.summary.failed + ' failed', 'fail');
+  } catch (err) { showStatus('statusGraph', '❌ ' + err.message, 'fail'); }
+  finally { btn.disabled = false; btn.innerHTML = '✅ Approve & Execute'; }
+}
+</script>
+</body>
+</html>
