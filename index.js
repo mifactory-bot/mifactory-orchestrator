@@ -142,7 +142,7 @@ async function executeBlueprint(blueprint, apiKey) {
 }
 
 app.get('/', (req, res) => {
-  res.json({ service: 'mifactory-orchestrator', status: 'live', version: '2.0.1' });
+  res.json({ service: 'mifactory-orchestrator', status: 'live', version: '2.0.2' });
 });
 
 app.get('/ui', (req, res) => {
@@ -198,7 +198,7 @@ app.get('/mcp', (req, res) => {
     schema_version: '1.0',
     name: 'mifactory-orchestrator',
     description: 'MAS-Factory — Vibe Graphing orchestrator that chains MCP servers from plain English descriptions',
-    version: '2.0.1',
+    version: '2.0.2',
     tools: [
       { name: 'orchestrate', description: 'Generate a blueprint JSON from a natural language task', input_schema: { type: 'object', properties: { task: { type: 'string', description: 'Task description in natural language' } }, required: ['task'] } },
       { name: 'execute', description: 'Execute an approved blueprint', input_schema: { type: 'object', properties: { blueprint: { type: 'object' } }, required: ['blueprint'] } },
@@ -209,7 +209,7 @@ app.get('/mcp', (req, res) => {
 
 app.get('/.well-known/mcp/server-card.json', (req, res) => {
   res.json({
-    serverInfo: { name: 'mifactory-orchestrator', version: '2.0.1' },
+    serverInfo: { name: 'mifactory-orchestrator', version: '2.0.2' },
     authentication: { required: true },
     tools: [
       { name: 'orchestrate', description: 'Generate a blueprint from a natural language task', inputSchema: { type: 'object', properties: { task: { type: 'string' } }, required: ['task'] } },
@@ -224,7 +224,7 @@ app.get('/.well-known/mcp/server-card.json', (req, res) => {
 app.post('/mcp', (req, res) => {
   const { method, id } = req.body;
   if (method === 'initialize') {
-    return res.json({ jsonrpc: '2.0', id, result: { protocolVersion: '2024-11-05', serverInfo: { name: 'mifactory-orchestrator', version: '2.0.1' }, capabilities: { tools: {} } } });
+    return res.json({ jsonrpc: '2.0', id, result: { protocolVersion: '2024-11-05', serverInfo: { name: 'mifactory-orchestrator', version: '2.0.2' }, capabilities: { tools: {} } } });
   }
   if (method === 'tools/list') {
     return res.json({ jsonrpc: '2.0', id, result: { tools: [
