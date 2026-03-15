@@ -82,9 +82,9 @@ async function generateBlueprint(task) {
     return name + ':\n' + eps;
   }).join('\n\n');
 
-  const prompt = 'You are an agent orchestrator. Design a Blueprint JSON for this task. Always respond in English only.\n\nTASK: ' + task + '\n\nSERVICES:\n' + serviceList + '\n\nRULES:\n1. Use ONLY the listed services\n2. To reference previous node output use: "{{node_ID.output}}"\n3. To reference a specific field: "{{node_ID.output.fieldName}}"\n4. For spec/convert: use "{{node_X.output.text}}" NOT the full output object\n5. For contract/generate: always include projectName, clientName, freelancerName and amount as direct strings/numbers\n6. Order nodes in logical sequence\n7. ONLY use scraping/scrape if the task contains an explicit URL starting with http. If no URL in task, NEVER use scraping.\n\nRespond ONLY with valid JSON:\n{\n  "task": "description",\n  "estimated_credits": number,\n  "nodes": [\n    {\n      "id": "node_1",\n      "service": "name",\n      "endpoint": "/endpoint",\n      "params": {},\n      "depends_on": [],\n      "description": "what it does"\n    }\n  ]\n}';
+  const prompt = 'You are an agent orchestrator. Design a Blueprint JSON for this task. Always respond in English only.\n\nTASK: ' + task + '\n\nSERVICES:\n' + serviceList + '\n\nRULES:\n1. Use ONLY the listed services and ONLY the exact endpoints listed above\n2. To reference previous node output use: "{{node_ID.output}}"\n3. To reference a specific field: "{{node_ID.output.fieldName}}"\n4. For spec service: ALWAYS use endpoint "/spec/convert" (NEVER use "/convert"). Use "{{node_X.output.text}}" as documentText parameter\n5. For contract/generate: always include projectName, clientName, freelancerName and amount as direct strings/numbers\n6. Order nodes in logical sequence\n7. ONLY use scraping/scrape if the task contains an explicit URL starting with http. If no URL in task, NEVER use scraping.\n8. CRITICAL: Every endpoint in your blueprint MUST exactly match one of the endpoints listed in SERVICES above. Double-check before responding.\n\nRespond ONLY with valid JSON:\n{\n  "task": "description",\n  "estimated_credits": number,\n  "nodes": [\n    {\n      "id": "node_1",\n      "service": "name",\n      "endpoint": "/endpoint",\n      "params": {},\n      "depends_on": [],\n      "description": "what it does"\n    }\n  ]\n}';
 
-      const response = await anthropic.messages.create({
+  const response = await anthropic.messages.create({
     model: 'claude-haiku-4-5-20251001',
     max_tokens: 1000,
     messages: [{ role: 'user', content: prompt }],
@@ -142,7 +142,7 @@ async function executeBlueprint(blueprint, apiKey) {
 }
 
 app.get('/', (req, res) => {
-  res.json({ service: 'mifactory-orchestrator', status: 'live', version: '2.0.0' });
+  res.json({ service: 'mifactory-orchestrator', status: 'live', version: '2.0.1' });
 });
 
 app.get('/ui', (req, res) => {
@@ -193,13 +193,12 @@ app.post('/mas-factory', authenticate, async (req, res) => {
 
 module.exports = app;
 
-// Smithery scan
 app.get('/mcp', (req, res) => {
   res.json({
     schema_version: '1.0',
     name: 'mifactory-orchestrator',
     description: 'MAS-Factory — Vibe Graphing orchestrator that chains MCP servers from plain English descriptions',
-    version: '2.0.0',
+    version: '2.0.1',
     tools: [
       { name: 'orchestrate', description: 'Generate a blueprint JSON from a natural language task', input_schema: { type: 'object', properties: { task: { type: 'string', description: 'Task description in natural language' } }, required: ['task'] } },
       { name: 'execute', description: 'Execute an approved blueprint', input_schema: { type: 'object', properties: { blueprint: { type: 'object' } }, required: ['blueprint'] } },
@@ -208,30 +207,9 @@ app.get('/mcp', (req, res) => {
   });
 });
 
-// Smithery server card
-
-
-// Smithery scan
-app.get('/mcp', (req, res) => {
-  res.json({
-    schema_version: '1.0',
-    name: 'mifactory-orchestrator',
-    description: 'MAS-Factory — Vibe Graphing orchestrator that chains MCP servers from plain English descriptions',
-    version: '2.0.0',
-    tools: [
-      { name: 'orchestrate', description: 'Generate a blueprint JSON from a natural language task', input_schema: { type: 'object', properties: { task: { type: 'string' } }, required: ['task'] } },
-      { name: 'execute', description: 'Execute an approved blueprint', input_schema: { type: 'object', properties: { blueprint: { type: 'object' } }, required: ['blueprint'] } },
-      { name: 'mas_factory', description: 'Orchestrate and execute in one call', input_schema: { type: 'object', properties: { task: { type: 'string' } }, required: ['task'] } }
-    ]
-  });
-});
-
 app.get('/.well-known/mcp/server-card.json', (req, res) => {
   res.json({
-    serverInfo: {
-      name: 'mifactory-orchestrator',
-      version: '2.0.0'
-    },
+    serverInfo: { name: 'mifactory-orchestrator', version: '2.0.1' },
     authentication: { required: true },
     tools: [
       { name: 'orchestrate', description: 'Generate a blueprint from a natural language task', inputSchema: { type: 'object', properties: { task: { type: 'string' } }, required: ['task'] } },
@@ -243,41 +221,20 @@ app.get('/.well-known/mcp/server-card.json', (req, res) => {
   });
 });
 
-// Smithery JSON-RPC POST /mcp
 app.post('/mcp', (req, res) => {
   const { method, id } = req.body;
-
   if (method === 'initialize') {
-    return res.json({
-      jsonrpc: '2.0', id,
-      result: {
-        protocolVersion: '2024-11-05',
-        serverInfo: { name: 'mifactory-orchestrator', version: '2.0.0' },
-        capabilities: { tools: {} }
-      }
-    });
+    return res.json({ jsonrpc: '2.0', id, result: { protocolVersion: '2024-11-05', serverInfo: { name: 'mifactory-orchestrator', version: '2.0.1' }, capabilities: { tools: {} } } });
   }
-
   if (method === 'tools/list') {
-    return res.json({
-      jsonrpc: '2.0', id,
-      result: {
-        tools: [
-          { name: 'orchestrate', description: 'Generate a blueprint from a natural language task', inputSchema: { type: 'object', properties: { task: { type: 'string' } }, required: ['task'] } },
-          { name: 'execute', description: 'Execute an approved blueprint', inputSchema: { type: 'object', properties: { blueprint: { type: 'object' } }, required: ['blueprint'] } },
-          { name: 'mas_factory', description: 'Orchestrate and execute in one call', inputSchema: { type: 'object', properties: { task: { type: 'string' } }, required: ['task'] } }
-        ]
-      }
-    });
+    return res.json({ jsonrpc: '2.0', id, result: { tools: [
+      { name: 'orchestrate', description: 'Generate a blueprint from a natural language task', inputSchema: { type: 'object', properties: { task: { type: 'string' } }, required: ['task'] } },
+      { name: 'execute', description: 'Execute an approved blueprint', inputSchema: { type: 'object', properties: { blueprint: { type: 'object' } }, required: ['blueprint'] } },
+      { name: 'mas_factory', description: 'Orchestrate and execute in one call', inputSchema: { type: 'object', properties: { task: { type: 'string' } }, required: ['task'] } }
+    ]}});
   }
-
   if (method === 'tools/call') {
-    const { name, arguments: args } = req.body.params;
-    return res.json({
-      jsonrpc: '2.0', id,
-      result: { content: [{ type: 'text', text: 'Use the REST API directly: POST /orchestrate, /execute, or /mas-factory' }] }
-    });
+    return res.json({ jsonrpc: '2.0', id, result: { content: [{ type: 'text', text: 'Use the REST API directly: POST /orchestrate, /execute, or /mas-factory' }] } });
   }
-
   res.json({ jsonrpc: '2.0', id, error: { code: -32601, message: 'Method not found' } });
 });
